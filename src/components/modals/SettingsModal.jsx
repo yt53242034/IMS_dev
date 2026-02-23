@@ -1,16 +1,31 @@
 import React, { useContext } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeContext, THEMES } from '../../contexts/ThemeContext';
 import { Icons } from '../Icons';
 
-const { X, RefreshCw } = Icons;
+const { X, Check } = Icons || {};
 
-const SettingsModal = ({ isOpen, onClose, onReset, settings, onUpdateSettings, currentThemeId, onThemeChange }) => {
+const SettingsModal = ({ isOpen, onClose, settings, onUpdateSettings, currentThemeId, onThemeChange }) => {
     const { theme } = useContext(ThemeContext);
-    if (!isOpen) return null;
 
     return (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme.colors.modalOverlay} backdrop-blur-sm`} onClick={onClose}>
-            <div className={`${theme.colors.panelBg} rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border ${theme.colors.border}`} onClick={e => e.stopPropagation()}>
+        <AnimatePresence>
+            {isOpen && (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${theme.colors.modalOverlay} backdrop-blur-sm`} 
+                onClick={onClose}
+            >
+                <motion.div 
+                    initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                    transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+                    className={`${theme.colors.panelBg} rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border ${theme.colors.border}`} 
+                    onClick={e => e.stopPropagation()}
+                >
                 <div className={`px-6 py-4 border-b ${theme.colors.border} flex justify-between items-center`}>
                     <h3 className={`font-bold text-lg ${theme.colors.textMain}`}>系統設定</h3>
                     <button onClick={onClose}><X className={`w-6 h-6 ${theme.colors.textSub}`} /></button>
@@ -18,14 +33,16 @@ const SettingsModal = ({ isOpen, onClose, onReset, settings, onUpdateSettings, c
                 <div className="p-6 space-y-6">
                     <div>
                         <label className={`block text-sm font-bold ${theme.colors.textMain} mb-3`}>主題風格</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex gap-4">
                             {THEMES.map(t => (
                                 <button
                                     key={t.id}
                                     onClick={() => onThemeChange(t.id)}
-                                    className={`p-3 rounded-xl border-2 transition-all text-sm font-bold ${currentThemeId === t.id ? `border-blue-500 bg-blue-50 text-blue-700` : `${theme.colors.border} ${theme.colors.textSub} hover:bg-black/5`}`}
+                                    className={`w-12 h-12 rounded-full border-2 transition-all flex items-center justify-center ${currentThemeId === t.id ? `border-blue-500 shadow-md scale-110` : `${theme.colors.border} hover:scale-105`}`}
+                                    style={{ backgroundColor: t.id === 'light' ? '#f8fafc' : '#0f172a' }}
+                                    title={t.name}
                                 >
-                                    {t.name}
+                                    {currentThemeId === t.id && <Check className={`w-6 h-6 ${t.id === 'light' ? 'text-slate-800' : 'text-white'}`} />}
                                 </button>
                             ))}
                         </div>
@@ -41,14 +58,20 @@ const SettingsModal = ({ isOpen, onClose, onReset, settings, onUpdateSettings, c
                         </button>
                     </div>
 
-                    <div className={`pt-4 border-t ${theme.colors.border}`}>
-                        <button onClick={onReset} className="w-full py-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 font-bold flex items-center justify-center transition-colors">
-                            <RefreshCw className="w-4 h-4 mr-2" /> 重置所有數據
+                    <div className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${theme.colors.textMain}`}>顯示物料縮圖</span>
+                        <button 
+                            onClick={() => onUpdateSettings({ ...settings, showThumbnails: !settings.showThumbnails })}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${settings.showThumbnails ? 'bg-blue-500' : 'bg-gray-300'}`}
+                        >
+                            <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.showThumbnails ? 'translate-x-6' : ''}`} />
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
+            )}
+        </AnimatePresence>
     );
 };
 

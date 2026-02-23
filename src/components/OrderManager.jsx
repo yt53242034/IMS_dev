@@ -3,7 +3,7 @@ import React, { useState, useContext } from 'react';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { Icons } from './Icons';
 
-const { Search, Check, Trash2 } = Icons;
+const { Search, Check, Trash2 } = Icons || {};
 
 const OrderManager = ({ orders, onExecute, onDelete }) => {
     const { theme } = useContext(ThemeContext);
@@ -13,7 +13,7 @@ const OrderManager = ({ orders, onExecute, onDelete }) => {
     const displayOrders = orders.filter(o => {
         if (o.status !== tab) return false;
         const term = searchTerm.toLowerCase();
-        return o.id.toLowerCase().includes(term) || o.items.some(i => i.name.toLowerCase().includes(term));
+        return String(o.id).toLowerCase().includes(term) || o.items.some(i => String(i.name).toLowerCase().includes(term));
     });
 
     return (

@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { Icons } from './Icons';
 
-const { UserPlus, Search, Briefcase, Pencil, Trash2, Hash, Users, Phone, Mail, MapPin, X } = Icons;
+const { UserPlus, Search, Briefcase, Pencil, Trash2, Hash, Users, Phone, Mail, MapPin, X } = Icons || {};
 
 const ClientManager = ({ clients, onAdd, onUpdate, onDelete }) => {
     const { theme } = useContext(ThemeContext);
@@ -13,10 +13,10 @@ const ClientManager = ({ clients, onAdd, onUpdate, onDelete }) => {
     // Filter clients
     const filteredClients = clients.filter(c => 
         searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean).every(term => 
-            (c.name || '').toLowerCase().includes(term) || 
-            (c.contact || '').toLowerCase().includes(term) ||
-            (c.phone || '').includes(term) ||
-            (c.taxId && c.taxId.includes(term))
+            String(c.name || '').toLowerCase().includes(term) || 
+            String(c.contact || '').toLowerCase().includes(term) ||
+            String(c.phone || '').includes(term) ||
+            (c.taxId && String(c.taxId).includes(term))
         )
     );
 

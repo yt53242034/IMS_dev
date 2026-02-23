@@ -1,5 +1,5 @@
 {
-  "appId": "com.example.proims",
-  "appName": "ProIMS",
+  "appId": "com.myims.app",
+  "appName": "原彩IMS系統",
   "webDir": "dist"
 }

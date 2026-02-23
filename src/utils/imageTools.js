@@ -1,4 +1,4 @@
-export const compressImage = async (base64Str, maxWidth = 800, quality = 0.7) => {
+export const compressImage = (base64Str, maxWidth = 2000, quality = 1) => {
     return new Promise((resolve) => {
         const img = new Image();
         img.src = base64Str;
@@ -6,10 +6,12 @@ export const compressImage = async (base64Str, maxWidth = 800, quality = 0.7) =>
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
+
             if (width > maxWidth) {
                 height = (height * maxWidth) / width;
                 width = maxWidth;
             }
+
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext('2d');

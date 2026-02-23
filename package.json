@@ -13,12 +13,18 @@
     "@capacitor/android": "^8.0.2",
     "@capacitor/core": "^8.0.2",
     "@capacitor/filesystem": "^8.1.0",
+    "framer-motion": "^12.34.0",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-virtualized-auto-sizer": "^2.0.2",
+    "react-window": "^2.2.6",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.0.2",
     "@eslint/js": "^9.39.1",
     "@types/react": "^19.2.5",

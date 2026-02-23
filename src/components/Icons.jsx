@@ -3,7 +3,9 @@ import {
     LayoutDashboard, Package, ArrowRightLeft, History, Settings, Search, Filter, 
     Plus, Minus, AlertTriangle, CheckCircle2, XCircle, X, Sparkles, Pencil, Save, 
     Trash2, Check, Calendar, Users, DollarSign, ArrowLeft, RefreshCw, AlertCircle, Info, List,
-    ToggleLeft, ToggleRight, Palette, Briefcase, Phone, Mail, MapPin, UserPlus, Hash
+    ToggleLeft, ToggleRight, Palette, Briefcase, Phone, Mail, MapPin, UserPlus, Hash,
+    Database, Upload, FileUp,
+    ChevronRight, ChevronDown, ChevronLeft
 } from 'lucide-react';
 
 export const Icons = {
@@ -11,5 +13,7 @@ export const Icons = {
     LayoutDashboard, Package, ArrowRightLeft, History, Settings, Search, Filter, 
     Plus, Minus, AlertTriangle, CheckCircle2, XCircle, X, Sparkles, Pencil, Save, 
     Trash2, Check, Calendar, Users, DollarSign, ArrowLeft, RefreshCw, AlertCircle, Info, List,
-    ToggleLeft, ToggleRight, Palette, Briefcase, Phone, Mail, MapPin, UserPlus, Hash
+    ToggleLeft, ToggleRight, Palette, Briefcase, Phone, Mail, MapPin, UserPlus, Hash,
+    Database, Upload, FileUp,
+    ChevronRight, ChevronDown, ChevronLeft
 };
