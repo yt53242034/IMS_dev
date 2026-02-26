@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext,
 import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
 import { saveFileToDevice, exportToCSV, printReport } from './utils/fileHelpers';
 import { saveImageToDisk, loadImageFromDisk } from './utils/imageHandler';
 import { ThemeContext, THEMES } from './contexts/ThemeContext';
@@ -588,30 +589,61 @@ import { generateNextId } from './utils/idGenerator';
             // ▲▲▲ 取代結束 ▲▲▲
             
             // --- 新增功能：JSON 備份與還原 ---
-            const handleExportBackup = async () => {
-                const backupData = {
-                    version: '1.0',
-                    date: new Date().toISOString(),
-                    note: backupNote, // 將備註寫入備份檔
-                };
-                if (exportOptions.inventory) backupData.inventory = inventory;
-                if (exportOptions.orders) backupData.orders = orders;
-                if (exportOptions.transactions) backupData.transactions = transactions;
-                if (exportOptions.clients) backupData.clients = clients;
-                if (exportOptions.settings) { backupData.settings = settings; backupData.themeId = currentThemeId; }
+            const handleExportBackup = () => {
+                const exportTask = async () => {
+                    const zip = new JSZip();
+                    const backupData = {
+                        version: '1.0',
+                        date: new Date().toISOString(),
+                        note: backupNote, // 將備註寫入備份檔
+                    };
 
-                const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-                
-                const now = new Date();
-                const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                // 若有備註，將其加入檔名以便識別 (過濾掉不合法字元)
-                const noteSuffix = backupNote ? `_${backupNote.replace(/[\\/:*?"<>|]/g, '')}` : '';
-                
-                await toast.promise(
-                    saveFileToDevice(blob, `原彩IMS_Backup${noteSuffix}_${timestamp}.json`),
+                    // 處理庫存圖片備份 (改為 ZIP 打包模式)
+                    if (exportOptions.inventory) {
+                        const imgFolder = zip.folder("images");
+                        // 備份資料本身只保留檔名，不嵌入 Base64
+                        backupData.inventory = inventory;
+
+                        // 另外將圖片實體加入 ZIP
+                        await Promise.all(inventory.map(async (item) => {
+                            if (item.image && !item.image.startsWith('data:') && !item.image.includes('/')) {
+                                try {
+                                    const url = await loadImageFromDisk(item.image);
+                                    if (url) {
+                                        const res = await fetch(url);
+                                        const blob = await res.blob();
+                                        imgFolder.file(item.image, blob);
+                                    }
+                                } catch (e) {
+                                    console.warn('備份圖片失敗:', newItem.name);
+                                }
+                            }
+                        }));
+                    }
+
+                    if (exportOptions.orders) backupData.orders = orders;
+                    if (exportOptions.transactions) backupData.transactions = transactions;
+                    if (exportOptions.clients) backupData.clients = clients;
+                    if (exportOptions.settings) { backupData.settings = settings; backupData.themeId = currentThemeId; }
+
+                    // 將 JSON 資料加入 ZIP
+                    zip.file("backup_data.json", JSON.stringify(backupData, null, 2));
+
+                    // 產生 ZIP 檔案
+                    const content = await zip.generateAsync({ type: "blob" });
+                    
+                    const now = new Date();
+                    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+                    const noteSuffix = backupNote ? `_${backupNote.replace(/[\\/:*?"<>|]/g, '')}` : '';
+                    
+                    await saveFileToDevice(content, `IMS庫存備份${noteSuffix}_${timestamp}.zip`);
+                };
+
+                toast.promise(
+                    exportTask(),
                     {
-                        loading: '正在匯出備份...',
-                        success: '備份已下載！',
+                        loading: '正在壓縮並匯出備份...',
+                        success: (<b>備份已下載！<br/>格式為 ZIP 壓縮檔。</b>),
                         error: '匯出失敗',
                     }
                 );
@@ -621,28 +653,111 @@ import { generateNextId } from './utils/idGenerator';
                 const file = event.target.files[0];
                 if (!file) return;
                 
-                const reader = new FileReader();
-                reader.onload = (e) => {
+                const processFile = async () => {
                     try {
-                        const data = JSON.parse(e.target.result);
-                        setRestoreData(data); // 開啟還原選擇視窗
+                        let data = null;
+                        let imagesMap = new Map();
+
+                        // 嘗試作為 ZIP 讀取
+                        try {
+                            const zip = await JSZip.loadAsync(file);
+                            // 讀取 JSON 資料
+                            const jsonFile = zip.file("backup_data.json");
+                            if (jsonFile) {
+                                const jsonStr = await jsonFile.async("string");
+                                data = JSON.parse(jsonStr);
+                                
+                                // 準備圖片資料 (暫存於 Map 中，等待確認還原)
+                                const imgFolder = zip.folder("images");
+                                if (imgFolder) {
+                                    const imageFiles = [];
+                                    imgFolder.forEach((relativePath, file) => {
+                                        imageFiles.push({ path: relativePath, file });
+                                    });
+                                    
+                                    // 平行處理圖片轉換 (轉回 Base64 以便 saveImageToDisk 使用)
+                                    await Promise.all(imageFiles.map(async ({ path, file }) => {
+                                        const base64 = await file.async("base64");
+                                        // 簡單判斷 mime type
+                                        const ext = path.split('.').pop().toLowerCase();
+                                        const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+                                        imagesMap.set(path, `data:${mime};base64,${base64}`);
+                                    }));
+                                }
+                            }
+                        } catch (e) {
+                            // 如果不是 ZIP，嘗試作為舊版 JSON 讀取
+                            const text = await file.text();
+                            data = JSON.parse(text);
+                        }
+
+                        if (data) {
+                            // 將圖片 Map 附加到資料物件上傳遞給還原函式
+                            data.imagesMap = imagesMap;
+                            setRestoreData(data);
+                        } else {
+                            throw new Error("無法讀取資料");
+                        }
                     } catch (err) {
+                        console.error(err);
                         toast.error('備份檔案格式錯誤或損毀');
                     }
                 };
-                reader.readAsText(file);
+                
+                processFile();
                 event.target.value = ''; // 重置 input
             };
 
             const handleConfirmRestore = (selection) => {
                 if (!restoreData) return;
-                if (selection.inventory && restoreData.inventory) setInventory(restoreData.inventory);
-                if (selection.orders && restoreData.orders) setOrders(restoreData.orders);
-                if (selection.transactions && restoreData.transactions) setTransactions(restoreData.transactions);
-                if (selection.clients && restoreData.clients) setClients(restoreData.clients);
-                if (selection.settings) { if (restoreData.settings) setSettings(restoreData.settings); if (restoreData.themeId) setCurrentThemeId(restoreData.themeId); }
-                setRestoreData(null);
-                toast.success('系統還原成功！');
+                
+                const restoreTask = async () => {
+                    if (selection.inventory && restoreData.inventory) {
+                        // 處理圖片還原
+                        if (restoreData.imagesMap && restoreData.imagesMap.size > 0) {
+                            await Promise.all(restoreData.inventory.map(async (item) => {
+                                // 如果該物料有圖片檔名，且該圖片存在於 ZIP 中
+                                if (item.image && restoreData.imagesMap.has(item.image)) {
+                                    try {
+                                        const base64Data = restoreData.imagesMap.get(item.image);
+                                        // 寫入平板硬碟 (IndexedDB/OPFS)
+                                        await saveImageToDisk(base64Data, item.id);
+                                    } catch (e) {
+                                        console.warn("還原圖片失敗", item.name);
+                                    }
+                                }
+                            }));
+                        }
+                        
+                        // 舊版相容：如果 JSON 內直接包含 Base64 (舊備份檔)，也嘗試寫入
+                        const finalInventory = await Promise.all(restoreData.inventory.map(async (item) => {
+                            if (item.image && item.image.startsWith('data:')) {
+                                try {
+                                    const savedPath = await saveImageToDisk(item.image, item.id);
+                                    return { ...item, image: savedPath };
+                                } catch (e) { return item; }
+                            }
+                            return item;
+                        }));
+
+                        setInventory(finalInventory);
+                    }
+                    
+                    if (selection.orders && restoreData.orders) setOrders(restoreData.orders);
+                    if (selection.transactions && restoreData.transactions) setTransactions(restoreData.transactions);
+                    if (selection.clients && restoreData.clients) setClients(restoreData.clients);
+                    if (selection.settings) { if (restoreData.settings) setSettings(restoreData.settings); if (restoreData.themeId) setCurrentThemeId(restoreData.themeId); }
+                    setRestoreData(null);
+                };
+
+                toast.promise(
+                    restoreTask(),
+                    {
+                        loading: '正在還原資料與圖片...',
+                        success: '系統還原成功！',
+                        error: '還原失敗',
+                    }
+                );
             };
 
             // --- 新增功能：刪除物料 ---
